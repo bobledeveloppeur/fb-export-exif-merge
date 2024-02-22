@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Facebook Export - Exif Merge</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+<style type="text/css">
+*,::after,::before{box-sizing:border-box}html{font-family:system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji';line-height:1.15;text-size-adjust:100%;}body{margin:1rem;}strong{font-weight:bolder}code{font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;font-size:1em}button,input{font-family:inherit;font-size:100%;line-height:1.15;margin:0}button{text-transform:none}button{-webkit-appearance:button}progress{vertical-align:baseline}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}
+</style>
+<style type="text/css">
+body { color:#122430; }
+#mergeLogs .info { color: #33b5e5; }
+#mergeLogs .success { color: #00c851; }
+#mergeLogs .warning { color: #ffbb33; }
+#mergeLogs .error, #mergeLogs .danger { color: #ff4444; }
+#bottom { padding-bottom:2rem; }
+a { color: #262132; }
+a:visited { color: #688293; }
+code {
+  background-color: #122430;
+  padding: 0.2em 1em;
+  color: #958daa;
+  text-shadow: 0 0 5px #655c7c;
+  border: 1px solid #655c7c;
+  display: inline-block;
+  border-radius:0.3em;
+}
+code:before { content: "> "; }
+progress { border-radius: 0; padding: 0.2rem; border: 0.14rem solid #688293; width:70%; margin-left:15%; }
+progress::-webkit-progress-bar { background-color: transparent; }
+progress::-webkit-progress-value { background-color: #688293; }
+.button, button {
+  background-color: #fff;
+  border: 0.14rem solid #122430;
+  color: #122430;
+  cursor: pointer;
+  display: inline-block;
+  fill: #000;
+  font-weight:bold;
+  padding:0.3rem 1rem;
+  text-align: center;
+  min-width: 320px;
+  outline: 0;
+  text-decoration: none;
+  transition: all .3s;
+  user-select: none;
+}
+.button:focus, button:focus { color: #688293; }
+.button:hover, .button:hover { border-color: #655c7c; color: #655c7c; }
+.button:active, button:active { border-color: #688293; color: #688293; }
+</style>
+  
+</head>
+<body>
+<h1>EXIF Merge for image and video Facebook Export</h1>
+<p>A tool to restore EXIF data to images downloaded in a Facebook data export.</p>
+<p><em>Inspired by <a href="https://github.com/addshore/facebook-data-image-exif" target="_blank">addshore works</a></em></p>
+<p><em>Forgive code quality, it was written in notepad</em></p>
+<h2>Introduction</h2>
+<p><em>Shamefully plagiarized from the blog <a href="https://addshore.com/2020/04/add-exif-data-back-to-facebook-images-0-10/" target="_blank">addshore.com</a></em></p>
+<h3>What is Exif data?</h3>
+<blockquote cite="https://addshore.com/2020/04/add-exif-data-back-to-facebook-images-0-10/">
+  <p>
+    <strong>Exchangeable image file format</strong> (officially <strong>Exif</strong>) is a standard that specifies the formats for images and tags used by digital cameras and other systems handling image files.
+    <br />
+	<a href="https://en.wikipedia.org/wiki/Exif" target="_blank">Snipped from Wikipedia</a>
+  </p>
+  <p>
+    Common Exif data for an image includes the time that it was taken, the camera make and model and the coordinate data for the location of the image.
+    <br />
+    This data is different to the data you might find in a file browser, such as “Date Modified”.
+  </p>
+</blockquote>
+<h3>Why are Facebook images missing this data?</h3>
+<blockquote cite="https://addshore.com/2020/04/add-exif-data-back-to-facebook-images-0-10/">
+  <p>
+    When you uploaded an image to Facebook, part of the process would remove the Exif data that was attached to the image and store it elsewhere.
+  </p>
+  <p>
+    As a result, when you download all of your data including previously uploaded images, your images are missing this data. Most of the data is preserved elsewhere in the data download, but it is no longer attached to the image itself.
+  </p>
+</blockquote>
+<h2>Get back your metadata now!</h2>
+<h3>Download</h3>
+<p>
+Download Exif Tool 
+<a href="https://exiftool.org/" target="_blank">Follow this link</a>
+</p>
+<p>
+Download Facebook data (use JSON format)
+<a href="https://accountscenter.facebook.com/info_and_permissions/dyi/" target="_blank">Follow this link</a>
+<br/>
+Extract Facebook archive
+<br />
+<em>Some file path are extra long, extract archive in a small path directory like "C:\fb\" to avoid errors</em>
+</p>
+<h3>Run Exif command</h3>
+<p>Export existing metadata of downloaded facebook files</p>
+<code>exiftool.exe -r -json >exif.json C:\fb\</code>
+
+<h3>Select exif.json and unzip</h3>
+<p>This tool works in your browser, your data will not be uploaded to some server</p>
+<label class="button">
+Load exif.json 
+<input type="file" id="exifFile" onchange="readFile(this)" placeholder="Select exif.json file" style="display:none;" />
+</label>
+<br />
+<br />
+<button type="button" id="directoryButton">Select Facebook archive directory</button>
+
+<h3>Merge Logs</h3>
+<div id="mergeLogs"></div>
+
+<div id="result-panel" style="display:none;">
+  <h3>Download updated exif file</h3>
+  <p>You can now download new ExifTool json file with new properties</p>
+  <a id="resultButton" class="button" download="exif-updates.json">Get exif-updates.json</a>
+  <h3>Run Exif command</h3>
+  <p>Import new data in media files <em>(with findstr commands to hide not included files)</em></p>
+  <code>exiftool.exe -r -json=exif-updates.json C:\fb\ 2>&amp;1 | findstr /V /I "No SourceFile" | findstr /V /I "(full path"</code>
+  <p>Or use second command to find to get full exiftool output</p>
+  <code>exiftool.exe -r -json=exif-updates.json C:\fb\</code>
+</div>
+
+<div id="bottom"></div>
+
+<script type="text/javascript">
+(function() {
+  let mapping = {
+	global: {
+	  
+	},
+    images: {
+	  "DateTimeOriginal" : (node) => parseTimestamp(extractPhoto(node, ["taken_timestamp", "modified_timestamp", "creation_timestamp"])),
+	  "ModifyDate" : (node) => parseTimestamp(extractPhoto(node, ["modified_timestamp"])),
+	  "FNumber" : (node) => extractPhoto(node, ["f_stop"]),
+	  "Make" : (node) => extractPhoto(node, ["camera_make"]),
+	  "Model" : (node) => extractPhoto(node, ["camera_model"]),
+	  "GPSLatitude" : (node) => extractPhoto(node, ["latitude"]),
+	  "GPSLatitudeRef" : (node) => extractPhoto(node, ["latitude"]),
+	  "GPSLongitude" : (node) => extractPhoto(node, ["longitude"]),
+	  "GPSLongitudeRef" : (node) => extractPhoto(node, ["longitude"]),
+	  "EXPOSURE" : (node) => extractPhoto(node, ["exposure"]),
+	  "ISO" : (node) => extractPhoto(node, ["iso_speed"]),
+	  "FocalLength" : (node) => extractPhoto(node, ["focal_length"]),
+	  //"upload_ip" : (node) => extractPhoto(node, ["upload_ip"]),
+	},
+	videos: {
+	  "DateTimeOriginal" : (node) => parseTimestamp(extractVideo(node, ["taken_timestamp", "modified_timestamp", "creation_timestamp"])),
+	  //"upload_timestamp" : (node) => parseTimestamp(extractVideo(node, ["upload_timestamp"])),
+	  //"upload_ip" : (node) => extractVideo(node, ["upload_ip"]),
+	}
+  }
+  function extractPhoto(node, propertyCandidates) {
+    return extractDefault(node?.media_metadata?.photo_metadata?.exif_data[0], propertyCandidates) ?? extractDefault(node, propertyCandidates)
+  }
+  function extractVideo(node, propertyCandidates) {
+    return extractDefault(node?.media_metadata?.video_metadata?.exif_data[0], propertyCandidates) ?? extractDefault(node, propertyCandidates)
+  }
+  function extractDefault(node, propertyCandidates) {
+    return (node && propertyCandidates) ? (node[propertyCandidates.find(p => node[p])] || null) : null;
+  }
+  function parseTimestamp(timestamp) {
+    return timestamp ? dateString(new Date(timestamp * 1000)) : null;
+  }
+  function dateString(d) {
+    return d ? d.toISOString().replaceAll("-", ":").replace("T", " ").substring(0, 19) : null;
+  }
+  
+  let exifData = null;
+  let exifImages = [];
+  let exifVideos = [];
+  let exifJson = [];
+  let directory = null;
+  let nodesWithUri = null;
+  let cnsl = document.getElementById("mergeLogs");
+  let resultPanel = document.getElementById("result-panel");
+  let bottom = document.getElementById("bottom");
+  let resultButton = document.getElementById("resultButton");
+  let availableFields = null;
+  
+  function log(text, type) { cnsl.innerHTML += (`<pre class="${type || 'info'}">${text}</pre>`); scrollBottom(); }
+  function logError(text) { log(text, "error"); }
+  function logWarn(text) { log(text, "warning"); }
+  function scrollBottom() { bottom.scrollIntoView({block: "end", inline: "nearest"}); }
+  
+  document.getElementById("exifFile").onchange = function() {
+    let reader = new FileReader();
+    reader.onload = function() {
+      exifData = JSON.parse(reader.result);
+	  exifJson = exifData.filter(x => x.MIMEType && x.MIMEType.indexOf("application/json") === 0);
+	  exifImages = exifData.filter(x => x.MIMEType && x.MIMEType.indexOf("image/") === 0);
+	  exifVideos = exifData.filter(x => x.MIMEType && x.MIMEType.indexOf("video/") === 0);
+      log(`ExifTool : Found ${exifData.length} files - [${exifJson.length} json] [${exifImages.length} images] [${exifVideos.length} videos]`);
+	  merge();
+    };
+    reader.onerror = function() { logError(reader.error); };
+    reader.readAsText(this.files[0]);
+  }
+  
+  document.getElementById("directoryButton").onclick = async function() {
+    directory = { "*errors" : [] };
+    const dirHandle = await showDirectoryPicker();  
+	log(`Read directory '${dirHandle.name}' (please wait)`);
+    await handleDirectoryEntry("./", dirHandle, directory );
+	log(`Found ${Object.keys(directory).length} files in directory`);
+	if (directory["*errors"].length) {
+	  const errorMsg = `Could not read ${directory["*errors"].length} files`;
+      logError(errorMsg);
+	  console.error(errorMsg, directory["*errors"]);
+	}
+	let jsonFiles = [...Object.keys(directory)].filter(name => name && name.endsWith(".json")).map(name => directory[name]);
+	log(`Analyze ${jsonFiles.length} files`);
+	await refreshScreen();
+	nodesWithUri = new Map();
+	availableFields = {}
+	let progress = document.createElement("progress");
+	progress.setAttribute("max", jsonFiles.length.toString());
+	
+	progress.current = 0;
+	cnsl.append(progress);
+	let loader = document.createElement("pre");
+	cnsl.append(loader);
+	let counter = 1;
+	for (var file of jsonFiles) {
+	  counter++;
+	  progress.setAttribute("value", counter.toString());
+	  loader.innerText = `${counter} : ${file.name}`;
+	  if (isRefreshTurn(counter)) {
+	    await refreshScreen();
+	  }
+	  analyze(JSON.parse(await file.text()));
+	}
+	console.log("availableFields", availableFields);
+	loader.remove();
+	progress.remove();
+	await refreshScreen();
+	log(`Found ${nodesWithUri.size} local ressources`);
+	directory = true;
+	await merge();
+  }
+  
+  async function handleDirectoryEntry(dirPath, dirHandle) {
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === "file"){
+	    try {
+          const file = await entry.getFile();
+          directory[dirPath + file.name ] = file;
+		} catch (error) {
+			directory["*errors"].push({ error: error, directory : dirHandle, path: dirPath, entry : entry })
+		}
+      } else if (entry.kind === "directory") {
+        try {
+		  await handleDirectoryEntry(`${dirPath}${entry.name}/`, await dirHandle.getDirectoryHandle( entry.name, { create: false } ));
+        } catch (error) { logError(error); }
+	  } else {
+	    console.warn("unknown entry kind", entry);
+	  }
+    }
+  }
+  
+  function analyze(node, parent) {
+	if (typeof(node) === "object") {
+      for (let prop in node) {
+        if (prop === "uri") {
+		  if (!node.uri.startsWith("https://") && !node.uri.startsWith("http://")) {
+		    let mapKey = "./" + node.uri;
+		    let fbNodes = nodesWithUri.get(mapKey);
+			if (!fbNodes) {
+			  fbNodes = [];
+			  nodesWithUri.set(mapKey, fbNodes);
+			}
+            fbNodes.push(node);
+			analyseField(node, availableFields);
+		  }
+        } else {
+          analyze(node[prop], node);
+        }
+      }
+	  node.parent = () => parent;
+	}
+  }
+  
+  function analyseField(node, fields) {
+    for (let prop in node) {
+	  if (prop !== "parent") {
+	    let propName = typeof(prop) === "number" ? "X:number" : prop;
+	    fields[propName] = fields[propName] || {};
+	    if (typeof(node[prop]) === "object") {
+		  analyseField(node[prop], fields[propName]);
+	    }
+	  }
+	}
+  }
+  
+  async function merge() {
+    resultPanel.style.display = "none";
+	resultButton.removeAttribute("href");
+    if (exifData && directory) {
+	  var result = [...(await mergeType("images", exifImages)), ...(await mergeType("videos", exifVideos))];
+	  if (result.length) {
+	    resultButton.setAttribute("href", "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(result)));
+	    resultPanel.style.display = "block";
+	  } else {
+	    logWarn("Found 0 files to update");
+	  }
+	  directory = false;
+	  scrollBottom();
+    }
+  }
+  
+  async function mergeType(type, exifSet) {
+    log(`Merge ${type} metadata...`);
+	let counters = {};
+	let updates = [];
+	let ignores = {};
+	let rulesToUse = [mapping.global, mapping[type]];
+	
+	let progress = document.createElement("progress");
+	progress.setAttribute("max", exifSet.length.toString());
+	progress.current = 0;
+	cnsl.append(progress);
+	let loader = document.createElement("pre");
+	cnsl.append(loader);
+	let exifCounter = 1;
+	
+	for(let item of exifSet) {
+	  exifCounter++;
+	  progress.setAttribute("value", exifCounter.toString());
+	  loader.innerText = `${exifCounter} : ${item.SourceFile}`;
+	  if (isRefreshTurn(exifCounter)) {
+	    await refreshScreen();
+	  }
+	  let updated = false;
+	  let associatedNodes = (nodesWithUri.get(item.SourceFile) || []);
+	  let newValues = {};
+	  for(let node of associatedNodes) {
+	    for (let rules of rulesToUse) {
+		  for (let prop in rules) {
+	        let propValue = undefined;
+			let rule = rules[prop];
+			let ruleType = typeof(rule);
+			if (ruleType === "function") {
+			  propValue = rule(node);
+			} else if (ruleType === "string") {
+			  propValue = node[rule]
+			}
+	        if (propValue !== null && typeof(propValue) !== "undefined") {
+		      newValues[prop] = propValue;
+            }
+	      }
+		}
+	  }
+	  let oldValues = {};
+	  for(let nProp in newValues) {
+		if (item[nProp] !== newValues[nProp]) {
+	      counters[nProp] = (counters[nProp] || 0) + 1;
+	      updated = true;
+		  oldValues[nProp] = item[nProp];
+		  item[nProp] = newValues[nProp];
+		}
+	  }
+	  if (updated) {
+		for (var prop in item) {
+		  if (typeof(item[prop]) === "string" && item[prop].startsWith("(Binary data")) {
+		    delete item[prop];
+		  }
+		}
+	    updates.push({ item: item, new: newValues, old: oldValues });
+	  } else {
+		let path = ignores;
+		for(let part of item.SourceFile.split("/")) {
+		  path = (path[part] = path[part] || { "*nodes" : [] });
+		  path["*nodes"].push(...associatedNodes)
+		}
+	  }
+	}
+	loader.remove();
+	progress.remove();
+	
+	log(`[${type}] : ${updates.length} files to update`);
+	for (var prop in counters) {
+	  log(`- [${type}] : Updating "${prop}" × ${counters[prop]}`);
+	}
+	console.log("updates : ", updates);
+	console.log("ignores : ", ignores);
+	await refreshScreen();
+	return updates.map(x => x.item);
+  }
+  
+  
+  async function refreshScreen() {
+    await new Promise(resolve => {
+	  scrollBottom();
+      requestAnimationFrame(resolve);
+    });
+  }
+  
+  function isRefreshTurn(counter) {
+	  return (10 > counter) || (0 === (counter % (counter > 6666 ? 137 : (counter > 666 ? 37 : 7))));
+  }
+  
+  function distinctFilter(value, index, array) { return array.indexOf(value) === index; }
+
+})();
+</script>
+
+</body>
+</html>
